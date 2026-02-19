@@ -1,168 +1,263 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Container Dashboard</title>
+    
+    <title>  Container Platform</title>
+
+    
+    <link rel="icon" href="{% static 'images/logo.png' %}">
+
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: Arial;
-            background: linear-gradient(to right, #35917a, #aebf16);
-            color: rgb(246, 245, 245);
-            text-align: center;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        h1 { margin-top: 30px; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: white;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+
+        .sidebar {
+            width: 240px;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 40px;
+        }
+
+        .menu a {
+            display: block;
+            padding: 12px;
+            border-radius: 8px;
+            color: #ddd;
+            text-decoration: none;
+            margin-bottom: 10px;
+            transition: 0.2s;
+        }
+
+        .menu a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Main */
+
+        .main {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .header {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+
+        /* Cards */
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(12px);
+        }
+
+        /* Create form */
+
+        input {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            outline: none;
+            margin-right: 10px;
+        }
 
         button {
-            padding: 12px 20px;
-            margin: 10px;
+            padding: 8px 14px;
+            border-radius: 6px;
             border: none;
-            border-radius: 8px;
-            background: #00c9a7;
-            color: white;
-            font-size: 16px;
             cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
         }
 
-        .start-btn { background: #28a745; }
-        .stop-btn { background: #dc3545; }
-        .pause-btn { background: #4e510c; }
-        .unpause-btn { background: yellowgreen; }
-        .delete-btn { background: #b02a37; }
-        .logs-btn { background: #007bff; }
+        button:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
 
-        button:hover { opacity: 0.85; }
+        .btn-blue { background: #3b82f6; color: white; }
+        .btn-green { background: #22c55e; color: white; }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-yellow { background: #eab308; color: black; }
+        .btn-gray { background: #64748b; color: white; }
+
+        /* Table */
 
         table {
-            margin: auto;
-            margin-top: 30px;
+            width: 100%;
             border-collapse: collapse;
-            width: 70%;
-            background: white;
-            color: black;
         }
 
         th, td {
             padding: 12px;
-            border: 1px solid #ddd;
+            text-align: left;
         }
 
         th {
-            background: #333;
-            color: white;
+            color: #ccc;
+            font-weight: 500;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-            /* below code is for live also to blink */
-        /* .live-indicator {
-        color: #00cc44;
-        font-weight: bold;
-        animation: blink 1s infinite;
-    }
 
-    @keyframes blink {
-        0%   { opacity: 1; }
-        50%  { opacity: 0.2; }
-        100% { opacity: 1; }
-    } */
+        tr {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
 
-            .live-dot {
-        color: #00cc44;
-        font-size: 18px;
-        margin-right: 5px;
-        animation: blink 1s infinite;
-    }
+        tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
 
-    @keyframes blink {
-        0%   { opacity: 1; }
-        50%  { opacity: 0.2; }
-        100% { opacity: 1; }
-    }
+        /* Status */
 
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
 
+        .running { background: #064e3b; color: #34d399; }
+        .exited { background: #3f1d1d; color: #f87171; }
+        .created { background: #1e293b; color: #94a3b8; }
 
-    </style> 
+        .actions button {
+            margin-right: 5px;
+            margin-top: 4px;
+        }
+
+    </style>
 </head>
 
 <body>
 
-<h1>Containers Dashboard</h1>
+<div class="sidebar">
 
-<br>
+    <div class="logo">Features</div>
 
-<h2>Create New Container</h2>
-<form method="post">
-    {% csrf_token %}
-    <input type="text" name="new_name" placeholder="Container name" required>
-    <button name="action" value="create">Create</button>
-</form>
+    <div class="menu">
+        <a href="#">Dashboard</a>
+        <a href="#">Containers</a>
+        <a href="#">Images</a>
+        <a href="#">Settings</a>
+    </div>
+
+</div>
 
 
-<h2>Running Containers</h2>
+<div class="main">
 
-<table>
-<tr>
-<th>Name</th>
-<th>Status</th>
-<th>Date</th>
-<th>Time</th>
-<th>Timezone</th>
-<th>Actions</th>
-</tr>
+    <div class="header">Containers Dashboard</div>
 
-{% for c in containers %}
-<tr data-name="{{ c.name }}"></tr>
-<td>
-    <b>{{ c.name }}</b><br>
-    <small>(ID : {{ c.id }})</small>
-</td>
-<td class="status">
-    {% if c.status == "running" %}
-        <!-- <span class="live-indicator">● LIVE</span>   --> 
-         <!-- above is for live-indicator -->
-          <span class="live-dot">●</span> LIVE
-    {% else %}
-        {{ c.status }}
-    {% endif %}
-</td>
+    <div class="card">
 
-<td>{{ c.date }}</td>
-<td>{{ c.time }}</td>
-<td>{{ c.timezone }}</td>
+        <h3>Create Container</h3>
+        <br>
 
-<td>
-    <form method="post" style="display:inline;">
-        {% csrf_token %}
-        <input type="hidden" name="name" value="{{ c.name }}">
-        <button class="start-btn" name="action" value="start">Start</button>
-        <button class="stop-btn" name="action" value="stop">Stop</button>
-        <button class="pause-btn" name="action" value="pause">Pause</button>
-        <button class="unpause-btn" name="action" value="unpause">Unpause</button>
-        <button class="delete-btn" name="action" value="delete">Delete</button>
-        <!-- <button class="logs-btn" name="action" value="logs">Logs</button> -->
-    </form>
+        <form method="post">
+            {% csrf_token %}
+            <input type="text" name="new_name" placeholder="Container name" required>
+            <button class="btn-blue" name="action" value="create">Create</button>
+        </form>
 
-    <!-- NEW LOGS BUTTON -->
-    <button type="button"
-            class="logs-btn"
-            onclick="window.open('/containers/logs/{{ c.name }}/')">
-        Logs
-    </button>
+    </div>
 
-    <!-- Terminal Button -->
-    <button type="button"
-            class="logs-btn"
-            onclick="openTerminalPopup('{{ c.name }}')">
-        Terminal
-    </button>
 
-</td>
-</tr>
-{% endfor %}
-</table>
+    <div class="card">
 
-<!-- {% if logs %}
-<h3>Logs</h3>
-<pre>{{ logs }}</pre>
-{% endif %} -->
+        <h3>Containers</h3>
+        <br>
+
+        <table>
+
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Actions</th>
+            </tr>
+
+            {% for c in containers %}
+            <tr data-name="{{ c.name }}">
+
+                <td>
+                    <b>{{ c.name }}</b><br>
+                    <small>{{ c.id }}</small>
+                </td>
+
+                <td>
+                    <span class="status-pill {{ c.status }}">
+                        {{ c.status }}
+                    </span>
+                </td>
+
+                <td>{{ c.date }}</td>
+                <td>{{ c.time }}</td>
+
+                <td class="actions">
+
+                    <form method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="name" value="{{ c.name }}">
+
+                        <button class="btn-green" name="action" value="start">Start</button>
+                        <button class="btn-red" name="action" value="stop">Stop</button>
+                        <button class="btn-yellow" name="action" value="pause">Pause</button>
+                        <button class="btn-gray" name="action" value="unpause">Unpause</button>
+                        <button class="btn-red" name="action" value="delete">Delete</button>
+                    </form>
+
+                    <button class="btn-blue"
+                        onclick="window.open('/containers/logs/{{ c.name }}/')">
+                        Logs
+                    </button>
+
+                    <button class="btn-blue"
+                        onclick="openTerminalPopup('{{ c.name }}')">
+                        Terminal
+                    </button>
+
+                </td>
+
+            </tr>
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+</div>
 
 
 <script>
@@ -171,7 +266,6 @@ let terminalWindow = null;
 
 function openTerminalPopup(containerName) {
 
-    // If popup not open → create
     if (!terminalWindow || terminalWindow.closed) {
 
         terminalWindow = window.open(
@@ -180,16 +274,14 @@ function openTerminalPopup(containerName) {
             "width=1000,height=700"
         );
 
-        // wait popup load
         setTimeout(() => {
             terminalWindow.postMessage({
                 container: containerName
             }, "*");
         }, 500);
 
-    } 
-    else {
-        // popup already exists
+    } else {
+
         terminalWindow.focus();
 
         terminalWindow.postMessage({
@@ -199,41 +291,6 @@ function openTerminalPopup(containerName) {
 }
 
 </script>
-
-
-<script>
-
-const statusSocket = new WebSocket(
-    "ws://" + window.location.host + "/ws/status/"
-);
-
-statusSocket.onmessage = function(event) {
-
-    const data = JSON.parse(event.data);
-
-    data.forEach(container => {
-
-        const row = document.querySelector(
-            `[data-name="${container.name}"]`
-        );
-
-        if (row) {
-
-            let statusCell = row.querySelector(".status");
-
-            if (container.status === "running") {
-                // statusCell.innerHTML = '<span class="live-indicator">● LIVE</span>';
-                statusCell.innerHTML = '<span class="live-dot">●</span> LIVE';
-            } else {
-                statusCell.innerHTML = container.status;
-            }
-        }
-
-    });
-};
-
-</script>
-
 
 </body>
 </html>
