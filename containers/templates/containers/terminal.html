@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Container Terminals</title>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial;
+        }
+
+        #tabs {
+            display: flex;
+            background: #222;
+            padding: 5px;
+        }
+
+        .tab {
+            padding: 6px 12px;
+            margin-right: 5px;
+            background: #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: #00c9a7;
+        }
+
+        .close {
+            margin-left: 8px;
+            color: red;
+            cursor: pointer;
+        }
+
+        #terminalArea {
+            height: calc(100vh - 40px);
+        }
+
+        .terminalBox {
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div style="background:#111;padding:5px;text-align:right;">
+    <button onclick="toggleFullscreen()" 
+            style="padding:5px 10px;border:none;border-radius:4px;background:#00c9a7;color:white;">
+        Fullscreen
+    </button>
+</div>
+
+
+<div id="tabs"></div>
+<div id="terminalArea"></div>
+
+<script>
+
+let tabCount = 0;
+
+window.addEventListener("message", function(event) {
+    const container = event.data.container;
+    if (container) {
+        createTab(container);
+    }
+});
+
+function createTab(containerName) {
+
+    const id = "term_" + tabCount++;
+    const tabId = "tab_" + id;
+
+    // TAB
+    const tab = document.createElement("div");
+    tab.className = "tab active";
+    tab.id = tabId;
+    tab.innerHTML = containerName +
+        `<span class="close" onclick="closeTab('${id}','${tabId}')">✖</span>`;
+
+    document.getElementById("tabs").appendChild(tab);
+
+    // TERMINAL BOX
+    const box = document.createElement("div");
+    box.className = "terminalBox";
+    box.id = id;
+    document.getElementById("terminalArea").appendChild(box);
+
+    activateTab(id, tabId);
+
+    tab.onclick = () => activateTab(id, tabId);
+
+    startTerminal(box, containerName);
+}
+
+
+function activateTab(id, tabId) {
+
+    document.querySelectorAll(".terminalBox")
+        .forEach(t => t.style.display = "none");
+
+    document.querySelectorAll(".tab")
+        .forEach(t => t.classList.remove("active"));
+
+    document.getElementById(id).style.display = "block";
+    document.getElementById(tabId).classList.add("active");
+}
+
+
+function closeTab(id, tabId) {
+
+    document.getElementById(id).remove();
+    document.getElementById(tabId).remove();
+}
+
+
+function startTerminal(containerDiv, containerName) {
+
+    const term = new Terminal({
+        cursorBlink: true
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    term.open(containerDiv);
+    fitAddon.fit();
+    term.focus();
+
+    const socket = new WebSocket(
+        (location.protocol === "https:" ? "wss://" : "ws://") +
+        location.host +
+        "/ws/terminal/" + containerName + "/"
+    );
+
+    socket.binaryType = "arraybuffer";
+
+    socket.onmessage = event => {
+        if (event.data instanceof ArrayBuffer) {
+            term.write(new Uint8Array(event.data));
+        } else {
+            term.write(event.data);
+        }
+    };
+
+    term.onData(data => {
+        socket.send(JSON.stringify({
+            input: data
+        }));
+    });
+
+}
+
+function toggleFullscreen() {
+
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } 
+    else {
+        document.exitFullscreen();
+    }
+}
+
+
+</script>
+
+</body>
+</html>
+
+

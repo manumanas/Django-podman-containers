@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Container Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(to right, #35917a, #aebf16);
+            color: rgb(246, 245, 245);
+            text-align: center;
+        }
+
+        h1 { margin-top: 30px; }
+
+        button {
+            padding: 12px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #00c9a7;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .start-btn { background: #28a745; }
+        .stop-btn { background: #dc3545; }
+        .pause-btn { background: #4e510c; }
+        .unpause-btn { background: yellowgreen; }
+        .delete-btn { background: #b02a37; }
+        .logs-btn { background: #007bff; }
+
+        button:hover { opacity: 0.85; }
+
+        table {
+            margin: auto;
+            margin-top: 30px;
+            border-collapse: collapse;
+            width: 70%;
+            background: white;
+            color: black;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #333;
+            color: white;
+        }
+            /* below code is for live also to blink */
+        /* .live-indicator {
+        color: #00cc44;
+        font-weight: bold;
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        0%   { opacity: 1; }
+        50%  { opacity: 0.2; }
+        100% { opacity: 1; }
+    } */
+
+            .live-dot {
+        color: #00cc44;
+        font-size: 18px;
+        margin-right: 5px;
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        0%   { opacity: 1; }
+        50%  { opacity: 0.2; }
+        100% { opacity: 1; }
+    }
+
+
+
+    </style> 
+</head>
+
+<body>
+
+<h1>Containers Dashboard</h1>
+
+<br>
+
+<h2>Create New Container</h2>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="new_name" placeholder="Container name" required>
+    <button name="action" value="create">Create</button>
+</form>
+
+
+<h2>Running Containers</h2>
+
+<table>
+<tr>
+<th>Name</th>
+<th>Status</th>
+<th>Date</th>
+<th>Time</th>
+<th>Timezone</th>
+<th>Actions</th>
+</tr>
+
+{% for c in containers %}
+<tr data-name="{{ c.name }}"></tr>
+<td>
+    <b>{{ c.name }}</b><br>
+    <small>(ID : {{ c.id }})</small>
+</td>
+<td class="status">
+    {% if c.status == "running" %}
+        <!-- <span class="live-indicator">● LIVE</span>   --> 
+         <!-- above is for live-indicator -->
+          <span class="live-dot">●</span> LIVE
+    {% else %}
+        {{ c.status }}
+    {% endif %}
+</td>
+
+<td>{{ c.date }}</td>
+<td>{{ c.time }}</td>
+<td>{{ c.timezone }}</td>
+
+<td>
+    <form method="post" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="name" value="{{ c.name }}">
+        <button class="start-btn" name="action" value="start">Start</button>
+        <button class="stop-btn" name="action" value="stop">Stop</button>
+        <button class="pause-btn" name="action" value="pause">Pause</button>
+        <button class="unpause-btn" name="action" value="unpause">Unpause</button>
+        <button class="delete-btn" name="action" value="delete">Delete</button>
+        <!-- <button class="logs-btn" name="action" value="logs">Logs</button> -->
+    </form>
+
+    <!-- NEW LOGS BUTTON -->
+    <button type="button"
+            class="logs-btn"
+            onclick="window.open('/containers/logs/{{ c.name }}/')">
+        Logs
+    </button>
+
+    <!-- Terminal Button -->
+    <button type="button"
+            class="logs-btn"
+            onclick="openTerminalPopup('{{ c.name }}')">
+        Terminal
+    </button>
+
+</td>
+</tr>
+{% endfor %}
+</table>
+
+<!-- {% if logs %}
+<h3>Logs</h3>
+<pre>{{ logs }}</pre>
+{% endif %} -->
+
+
+<script>
+
+let terminalWindow = null;
+
+function openTerminalPopup(containerName) {
+
+    // If popup not open → create
+    if (!terminalWindow || terminalWindow.closed) {
+
+        terminalWindow = window.open(
+            "/containers/terminal/",
+            "terminalWindow",
+            "width=1000,height=700"
+        );
+
+        // wait popup load
+        setTimeout(() => {
+            terminalWindow.postMessage({
+                container: containerName
+            }, "*");
+        }, 500);
+
+    } 
+    else {
+        // popup already exists
+        terminalWindow.focus();
+
+        terminalWindow.postMessage({
+            container: containerName
+        }, "*");
+    }
+}
+
+</script>
+
+
+<script>
+
+const statusSocket = new WebSocket(
+    "ws://" + window.location.host + "/ws/status/"
+);
+
+statusSocket.onmessage = function(event) {
+
+    const data = JSON.parse(event.data);
+
+    data.forEach(container => {
+
+        const row = document.querySelector(
+            `[data-name="${container.name}"]`
+        );
+
+        if (row) {
+
+            let statusCell = row.querySelector(".status");
+
+            if (container.status === "running") {
+                // statusCell.innerHTML = '<span class="live-indicator">● LIVE</span>';
+                statusCell.innerHTML = '<span class="live-dot">●</span> LIVE';
+            } else {
+                statusCell.innerHTML = container.status;
+            }
+        }
+
+    });
+};
+
+</script>
+
+
+</body>
+</html>

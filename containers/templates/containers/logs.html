@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title id="pageTitle">Logs</title>
+</head>
+<body style="background:black;color:rgb(66, 240, 66);font-family:monospace;">
+
+<!-- <pre id="logs"></pre> -->
+ <pre id="logs"
+     style="height:95vh;
+            overflow-y:auto;
+            padding:10px;
+            scroll-behavior:auto;"></pre>
+
+
+<script>
+const container = "{{ container_name }}";
+
+// Change browser tab title
+document.getElementById("pageTitle").innerText = container + "_logs";
+document.title = container + " • Logs";
+
+const logsBox = document.getElementById("logs");
+
+const socket = new WebSocket(
+    "ws://" + window.location.host + "/ws/logs/" + container + "/"
+);
+
+// let firstLoad = true;
+
+socket.onmessage = function(event) {
+
+    logsBox.textContent += event.data;
+
+    // Instant jump to bottom
+    // if (firstLoad) {
+    //     logsBox.scrollTop = logsBox.scrollHeight;
+    //     firstLoad = false;
+    // } else {
+    //     logsBox.scrollTop = logsBox.scrollHeight;
+    // }
+    logsBox.scrollTop = logsBox.scrollHeight;
+};
+</script>
+
+
+</body>
+</html>

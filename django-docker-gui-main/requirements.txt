@@ -1,0 +1,40 @@
+# Handle two or more services
+supervisor
+
+# Django
+Django==5.1.4
+
+# Django Packages
+django-cors-headers==3.11.0
+django-bootstrap3==21.2
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+
+drf-yasg==1.21.4
+pyparsing==3.0.8
+
+whitenoise==6.5.0 # staticfiles
+
+# Misc
+loguru
+google-auth
+
+# Debug
+ipython
+ipdb
+
+# Redis
+django-redis
+redis
+
+# Task scheduler
+django-rq
+rq
+
+# Docker SDK
+docker==7.1.0
+
+# Websocket
+channels==4.0.0
+channels_redis==4.1.0
+daphne==4.0.0
