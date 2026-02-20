@@ -11,12 +11,30 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
 
     async def connect(self):
+
         self.container_name = self.scope["url_route"]["kwargs"]["name"]
+
+        # ---------- CHECK LOCK ----------
+        check = subprocess.run(
+            ["podman", "exec", self.container_name, "test", "-f", "/tmp/container.lock"]
+        )
+
+        if check.returncode == 0:
+            await self.accept()
+            await self.send(text_data=" Container is currently in use.\r\n")
+            await self.close()
+            return
+
+        # ---------- CREATE LOCK ----------
+        subprocess.run(
+            ["podman", "exec", self.container_name, "touch", "/tmp/container.lock"]
+        )
+
         await self.accept()
 
+        # ---------- START TERMINAL ----------
         self.master_fd, self.slave_fd = pty.openpty()
 
-        # IMPORTANT: remove -t
         self.process = subprocess.Popen(
             [
                 "podman",
@@ -25,7 +43,7 @@ class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
                 self.container_name,
                 "bash",
                 "-i",
-            ],  
+            ],
             stdin=self.slave_fd,
             stdout=self.slave_fd,
             stderr=self.slave_fd,
@@ -44,6 +62,13 @@ class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
         self.read_task = asyncio.create_task(self.read_pty())
 
     async def disconnect(self, close_code):
+
+        try:
+            subprocess.run(
+                ["podman", "exec", self.container_name, "rm", "-f", "/tmp/container.lock"])
+        except:
+            pass
+
         try:
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         except:
