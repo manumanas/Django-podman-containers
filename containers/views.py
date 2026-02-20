@@ -387,9 +387,30 @@ def dashboard(request):
             "timezone": "IST (+05:30)"
         })
 
+
+
+        images = client.images.list()
+
+    image_data = []
+
+    for img in images:
+        try:
+            repo_tags = img.tags if img.tags else ["<none>"]
+            size_mb = round(img.attrs.get("Size", 0) / (1024 * 1024), 2)
+
+            image_data.append({
+                "id": img.id[:12],
+                "tags": ", ".join(repo_tags),
+                "size": f"{size_mb} MB"
+            })
+
+        except Exception:
+            pass
+
     return render(request, "containers/dashboard.html", {
         "containers": container_data,
         # "logs": logs,
+        "images": image_data,
         "message": msg
     })
 

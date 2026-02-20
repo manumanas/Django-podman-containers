@@ -166,16 +166,57 @@
     <div class="logo">Features</div>
 
     <div class="menu">
-        <!-- <a href="#">Dashboard</a> -->
-        <a href="#">Containers</a>
-        <a href="#">Images</a>
-        <!-- <a href="#">Settings</a> -->
-    </div>
+    <a href="javascript:void(0)" onclick="showSection('containersSection')">
+        Containers
+    </a>
+
+    <a href="javascript:void(0)" onclick="showSection('imagesSection')">
+        Images
+    </a>
+</div>
 
 </div>
 
 
 <div class="main">
+    <div id="containersSection"></div>
+
+
+     <!-- IMAGES SECTION -->
+    <div id="imagesSection" style="display:none;">
+
+    <div class="header">Images</div>
+
+    <div class="card">
+
+        <h3>Available Images</h3>
+        <br>
+
+        <table>
+
+            <tr>
+                <th>Repository / Tag</th>
+                <th>Image ID</th>
+                <th>Size</th>
+            </tr>
+
+            {% for img in images %}
+            <tr>
+                <td>{{ img.tags }}</td>
+                <td>{{ img.id }}</td>
+                <td>{{ img.size }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No images found</td>
+            </tr>
+            {% endfor %}
+
+        </table>
+
+    </div>
+
+</div>
 
     <div class="header">Containers Dashboard</div>
 
@@ -288,6 +329,18 @@ function openTerminalPopup(containerName) {
             container: containerName
         }, "*");
     }
+}
+
+</script>
+
+<script>
+
+function showSection(sectionId) {
+
+    document.getElementById("containersSection").style.display = "none";
+    document.getElementById("imagesSection").style.display = "none";
+
+    document.getElementById(sectionId).style.display = "block";
 }
 
 </script>
