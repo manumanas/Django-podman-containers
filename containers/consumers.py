@@ -6,13 +6,18 @@ import signal
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-
+from datetime import datetime
 
 class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
+
+
 
     async def connect(self):
 
         self.container_name = self.scope["url_route"]["kwargs"]["name"]
+
+        user = self.scope["user"]
+        username = user.username if user.is_authenticated else "anonymous"
 
         # ---------- CHECK LOCK ----------
         check = subprocess.run(
@@ -20,15 +25,36 @@ class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
         )
 
         if check.returncode == 0:
+
+            result = subprocess.run(
+                ["podman", "exec", self.container_name, "cat", "/tmp/container.lock"],
+                capture_output=True,
+                text=True
+            )
+
             await self.accept()
-            await self.send(text_data=" Container is currently in use.\r\n")
+            await self.send(
+                text_data=f"Container is currently in use.\r\n{result.stdout}\r\n"
+            )
             await self.close()
             return
 
         # ---------- CREATE LOCK ----------
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        lock_content = f"user: {username}\ntime: {now}\n"
+
         subprocess.run(
-            ["podman", "exec", self.container_name, "touch", "/tmp/container.lock"]
+            [
+                "podman",
+                "exec",
+                self.container_name,
+                "bash",
+                "-c",
+                f"echo '{lock_content}' > /tmp/container.lock",
+            ]
         )
+
 
         await self.accept()
 

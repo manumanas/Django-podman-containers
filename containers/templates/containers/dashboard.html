@@ -282,7 +282,7 @@
                     </form>
 
                     <button class="btn-blue"
-                        onclick="window.open('/containers/logs/{{ c.name }}/')">
+                        onclick="window.open('/logs/{{ c.name }}/')">
                         Logs
                     </button>
 
@@ -312,7 +312,7 @@ function openTerminalPopup(containerName) {
     if (!terminalWindow || terminalWindow.closed) {
 
         terminalWindow = window.open(
-            "/containers/terminal/",
+            "/terminal/",
             "terminalWindow",
             "width=1000,height=700"
         );
