@@ -11,9 +11,12 @@ from . import views
 # ]
 
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
+    # path("", views.dashboard, name="dashboard"),
+    path("", views.home, name="home"),  # LOGIN PAGE
+    path("containers/", views.dashboard, name="dashboard"),
+    path("logout/", views.logout_view, name="logout"),
     path("terminal/", views.terminal_page, name="terminal_page"),
     path("logs/<str:name>/", views.logs_page, name="logs_page"),
-
+    
 ]
 

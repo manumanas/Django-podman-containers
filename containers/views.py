@@ -298,11 +298,72 @@ from django.shortcuts import render
 from datetime import datetime
 import re
 import subprocess
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
 
 
 client = podman.PodmanClient(
     base_url="unix:///run/user/1000/podman/podman.sock"
 )
+
+
+def home(request):
+
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
+    signin_error = ""
+    signup_error = ""
+
+    if request.method == "POST":
+
+        action = request.POST.get("action")
+
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        # ---------- SIGN IN ----------
+        if action == "signin":
+
+            user = authenticate(request, username=username, password=password)
+
+            if user:
+                login(request, user)
+                return redirect("dashboard")
+
+            # user not found
+            if not User.objects.filter(username=username).exists():
+                signin_error = "Account not found. Please sign up."
+
+            else:
+                signin_error = "Invalid password."
+
+        # ---------- SIGN UP ----------
+        elif action == "signup":
+
+            if User.objects.filter(username=username).exists():
+                signup_error = "Account already exists. Please sign in."
+
+            else:
+                user = User.objects.create_user(
+                    username=username,
+                    password=password
+                )
+                login(request, user)
+                return redirect("dashboard")
+
+    return render(request, "containers/auth.html", {
+        "signin_error": signin_error,
+        "signup_error": signup_error
+    })
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("home")
+
 
 def get_container_logs(container_name):
     try:
@@ -315,7 +376,7 @@ def get_container_logs(container_name):
     except Exception as e:
         return str(e)
 
-
+@login_required(login_url="home")
 def dashboard(request):
     logs = None
     msg = ""
@@ -389,7 +450,7 @@ def dashboard(request):
 
 
 
-        images = client.images.list()
+    images = client.images.list()
 
     image_data = []
 

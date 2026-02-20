@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Container Platform</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+
+    body {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+        color: white;
+    }
+
+    .box {
+        width: 420px;
+        padding: 40px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .tabs {
+        display: flex;
+        margin-bottom: 20px;
+    }
+
+    .tabs button {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        cursor: pointer;
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    .tabs button.active {
+        background: #00c9a7;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        border: none;
+    }
+
+    button.submit {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: #00c9a7;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .error {
+        color: #ff6b6b;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+
+<h2>Container Platform</h2>
+
+<div class="tabs">
+    <button onclick="showTab('signin')" id="btnSignin" class="active">Sign In</button>
+    <button onclick="showTab('signup')" id="btnSignup">Sign Up</button>
+</div>
+
+<!-- SIGN IN -->
+<form method="post" id="signinForm">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="signin">
+
+    {% if signin_error %}
+        <div class="error">{{ signin_error }}</div>
+    {% endif %}
+
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password" required>
+
+    <button class="submit">Sign In</button>
+</form>
+
+<!-- SIGN UP -->
+<form method="post" id="signupForm" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="signup">
+
+    {% if signup_error %}
+        <div class="error">{{ signup_error }}</div>
+    {% endif %}
+
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password" required>
+
+    <button class="submit">Sign Up</button>
+</form>
+
+</div>
+
+<script>
+
+function showTab(tab) {
+
+    document.getElementById("signinForm").style.display =
+        tab === "signin" ? "block" : "none";
+
+    document.getElementById("signupForm").style.display =
+        tab === "signup" ? "block" : "none";
+
+    document.getElementById("btnSignin").classList.toggle("active", tab==="signin");
+    document.getElementById("btnSignup").classList.toggle("active", tab==="signup");
+}
+
+</script>
+
+</body>
+</html>
