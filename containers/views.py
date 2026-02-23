@@ -390,12 +390,22 @@ def dashboard(request):
             new_name = request.POST.get("new_name")
             try:
                 client.containers.run(
-                    "docker.io/library/ubuntu",
-                    command=["bash"],
+                    "ubuntu-systemd",   # your custom image
+                    command=["/sbin/init"],
                     detach=True,
                     tty=True,
                     stdin_open=True,
-                    name=new_name
+                    privileged=True,
+                    name=new_name,
+                    volumes={
+                        "/sys/fs/cgroup": {
+                            "bind": "/sys/fs/cgroup",
+                            "mode": "ro"
+                        }
+                    },
+                environment={
+                    "container": "podman"
+                }
                 )
                 msg = "Container created and started"
             except Exception:
