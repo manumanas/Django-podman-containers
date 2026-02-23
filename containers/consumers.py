@@ -6,104 +6,43 @@ import signal
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-from datetime import datetime
-
-class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
 
 
+class TerminalConsumer(AsyncWebsocketConsumer):
 
-   async def connect(self):
+    async def connect(self):
+        self.container_name = self.scope["url_route"]["kwargs"]["name"]
+        await self.accept()
 
-    self.container_name = self.scope["url_route"]["kwargs"]["name"]
+        self.master_fd, self.slave_fd = pty.openpty()
 
-    user = self.scope["user"]
-    username = user.username if user.is_authenticated else "anonymous"
-
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    lock_content = f"user: {username}\ntime: {now}\n"
-
-    # ---------- ATOMIC LOCK CREATION ----------
-    lock_cmd = (
-        f"set -o noclobber; "
-        f"echo '{lock_content}' > /tmp/container.lock"
-    )
-
-    result = subprocess.run(
-        [
-            "podman",
-            "exec",
-            self.container_name,
-            "bash",
-            "-c",
-            lock_cmd
-        ],
-        capture_output=True,
-        text=True
-    )
-
-    # ---------- IF LOCK ALREADY EXISTS ----------
-    if result.returncode != 0:
-
-        existing = subprocess.run(
+        self.process = subprocess.Popen(
             [
                 "podman",
                 "exec",
+                "-it",
                 self.container_name,
-                "cat",
-                "/tmp/container.lock"
+                "bash",
+                "-i",
             ],
-            capture_output=True,
-            text=True
+            stdin=self.slave_fd,
+            stdout=self.slave_fd,
+            stderr=self.slave_fd,
+            preexec_fn=os.setsid,
         )
 
-        await self.accept()
-        await self.send(
-            text_data=f"Container is currently in use.\r\n{existing.stdout}\r\n"
+        os.close(self.slave_fd)
+
+        await asyncio.sleep(0.2)
+
+        os.write(
+            self.master_fd,
+            f'export PS1="root@{self.container_name}:\\w# "\n'.encode()
         )
-        await self.close()
-        return
 
-    # ---------- LOCK SUCCESS ----------
-    await self.accept()
+        self.read_task = asyncio.create_task(self.read_pty())
 
-    # ---------- START TERMINAL ----------
-    self.master_fd, self.slave_fd = pty.openpty()
-
-    self.process = subprocess.Popen(
-        [
-            "podman",
-            "exec",
-            "-it",
-            self.container_name,
-            "bash",
-            "-i",
-        ],
-        stdin=self.slave_fd,
-        stdout=self.slave_fd,
-        stderr=self.slave_fd,
-        preexec_fn=os.setsid,
-    )
-
-    os.close(self.slave_fd)
-
-    await asyncio.sleep(0.2)
-
-    os.write(
-        self.master_fd,
-        f'export PS1="root@{self.container_name}:\\w# "\n'.encode()
-    )
-
-    self.read_task = asyncio.create_task(self.read_pty())
-
-    
     async def disconnect(self, close_code):
-
-        try:
-            subprocess.run(
-                ["podman", "exec", self.container_name, "rm", "-f", "/tmp/container.lock"])
-        except:
-            pass
-
         try:
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
         except:
@@ -151,7 +90,6 @@ class LogsConsumer(AsyncWebsocketConsumer):
 
         loop = asyncio.get_running_loop()
 
-        # -------- SEND FULL LOGS INSTANTLY --------
         history = await loop.run_in_executor(
             None,
             lambda: subprocess.check_output(
@@ -162,7 +100,6 @@ class LogsConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data=history)
 
-        # -------- NOW STREAM ONLY NEW LOGS --------
         self.process = subprocess.Popen(
             ["podman", "logs", "-f", "--since", "1s", self.container_name],
             stdout=subprocess.PIPE,
@@ -196,7 +133,6 @@ class StatusConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         await self.accept()
-
         self.task = asyncio.create_task(self.send_status_loop())
 
     async def disconnect(self, close_code):
@@ -223,4 +159,4 @@ class StatusConsumer(AsyncWebsocketConsumer):
 
             await self.send(text_data=json.dumps(data))
 
-            await asyncio.sleep(2)   # update every 2 seconds
+            await asyncio.sleep(2)
