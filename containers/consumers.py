@@ -12,81 +12,90 @@ class TerminalConsumer(AsyncWebsocketConsumer):  #continues communications
 
 
 
-    async def connect(self):
+   async def connect(self):
 
-        self.container_name = self.scope["url_route"]["kwargs"]["name"]
+    self.container_name = self.scope["url_route"]["kwargs"]["name"]
 
-        user = self.scope["user"]
-        username = user.username if user.is_authenticated else "anonymous"
+    user = self.scope["user"]
+    username = user.username if user.is_authenticated else "anonymous"
 
-        # ---------- CHECK LOCK ----------
-        check = subprocess.run(
-            ["podman", "exec", self.container_name, "test", "-f", "/tmp/container.lock"]
-        )
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lock_content = f"user: {username}\ntime: {now}\n"
 
-        if check.returncode == 0:
+    # ---------- ATOMIC LOCK CREATION ----------
+    lock_cmd = (
+        f"set -o noclobber; "
+        f"echo '{lock_content}' > /tmp/container.lock"
+    )
 
-            result = subprocess.run(
-                ["podman", "exec", self.container_name, "cat", "/tmp/container.lock"],
-                capture_output=True,
-                text=True
-            )
+    result = subprocess.run(
+        [
+            "podman",
+            "exec",
+            self.container_name,
+            "bash",
+            "-c",
+            lock_cmd
+        ],
+        capture_output=True,
+        text=True
+    )
 
-            await self.accept()
-            await self.send(
-                text_data=f"Container is currently in use.\r\n{result.stdout}\r\n"
-            )
-            await self.close()
-            return
+    # ---------- IF LOCK ALREADY EXISTS ----------
+    if result.returncode != 0:
 
-        # ---------- CREATE LOCK ----------
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        lock_content = f"user: {username}\ntime: {now}\n"
-
-        subprocess.run(
+        existing = subprocess.run(
             [
                 "podman",
                 "exec",
                 self.container_name,
-                "bash",
-                "-c",
-                f"echo '{lock_content}' > /tmp/container.lock",
-            ]
+                "cat",
+                "/tmp/container.lock"
+            ],
+            capture_output=True,
+            text=True
         )
-
 
         await self.accept()
-
-        # ---------- START TERMINAL ----------
-        self.master_fd, self.slave_fd = pty.openpty()
-
-        self.process = subprocess.Popen(
-            [
-                "podman",
-                "exec",
-                "-it",
-                self.container_name,
-                "bash",
-                "-i",
-            ],
-            stdin=self.slave_fd,
-            stdout=self.slave_fd,
-            stderr=self.slave_fd,
-            preexec_fn=os.setsid,
+        await self.send(
+            text_data=f"Container is currently in use.\r\n{existing.stdout}\r\n"
         )
+        await self.close()
+        return
 
-        os.close(self.slave_fd)
+    # ---------- LOCK SUCCESS ----------
+    await self.accept()
 
-        await asyncio.sleep(0.2)
+    # ---------- START TERMINAL ----------
+    self.master_fd, self.slave_fd = pty.openpty()
 
-        os.write(
-            self.master_fd,
-            f'export PS1="root@{self.container_name}:\\w# "\n'.encode()
-        )
+    self.process = subprocess.Popen(
+        [
+            "podman",
+            "exec",
+            "-it",
+            self.container_name,
+            "bash",
+            "-i",
+        ],
+        stdin=self.slave_fd,
+        stdout=self.slave_fd,
+        stderr=self.slave_fd,
+        preexec_fn=os.setsid,
+    )
 
-        self.read_task = asyncio.create_task(self.read_pty())
+    os.close(self.slave_fd)
 
+    await asyncio.sleep(0.2)
+
+    os.write(
+        self.master_fd,
+        f'export PS1="root@{self.container_name}:\\w# "\n'.encode()
+    )
+
+    self.read_task = asyncio.create_task(self.read_pty())
+
+    
     async def disconnect(self, close_code):
 
         try:
