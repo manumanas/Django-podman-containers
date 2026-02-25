@@ -302,6 +302,11 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+import time
+
+
+HOST_PUBLIC_KEY = "6cuKRk+7PQjrgLms8hRTrhNa7TiRoiZY3O5K4Jog41k="
+HOST_ENDPOINT = "192.168.10.191:51820"
 
 
 client = podman.PodmanClient(
@@ -408,6 +413,11 @@ def dashboard(request):
                 }
                 )
                 setup_wireguard(new_name)
+                
+                time.sleep(3)
+
+                # connect_peers(new_name)
+
                 msg = "Container created and started"
             except Exception:
                 msg = "Container name already exists or error occurred"
@@ -494,22 +504,22 @@ def logs_page(request, name):
         "container_name": name
     })
 
-def setup_wireguard(container_name):
+def setup_wireguard(new_name):
     ip = get_next_ip()
-    subprocess.run(f"podman exec {container_name} mkdir -p /etc/wireguard", shell=True)
+    subprocess.run(f"podman exec {new_name} mkdir -p /etc/wireguard", shell=True)
 
     subprocess.run(
-        f"podman exec {container_name} bash -c 'wg genkey | tee /etc/wireguard/privatekey'",
+        f"podman exec {new_name} bash -c 'wg genkey | tee /etc/wireguard/privatekey'",
         shell=True
     )
 
     subprocess.run(
-        f"podman exec {container_name} bash -c 'cat /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey'",
+        f"podman exec {new_name} bash -c 'cat /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey'",
         shell=True
     )
 
     result = subprocess.run(
-        f"podman exec {container_name} cat /etc/wireguard/privatekey",
+        f"podman exec {new_name} cat /etc/wireguard/privatekey",
         shell=True,
         capture_output=True,
         text=True
@@ -518,26 +528,66 @@ def setup_wireguard(container_name):
     private_key = result.stdout.strip()
 
     config = f"""
-        [Interface]
-        Address = {ip}/24
-        ListenPort = 51820
-        PrivateKey = {private_key}
-        """
+            [Interface]
+            Address = {ip}/24
+            ListenPort = 51820
+            PrivateKey = {private_key}
+
+            [Peer]
+            PublicKey = {HOST_PUBLIC_KEY}
+            AllowedIPs = 10.10.0.0/24
+            Endpoint = {HOST_ENDPOINT}
+            PersistentKeepalive = 25
+            """
 
     subprocess.run(
-        f"podman exec {container_name} bash -c \"echo '{config}' > /etc/wireguard/wg0.conf\"",
+        f"podman exec {new_name} bash -c \"echo '{config}' > /etc/wireguard/wg0.conf\"",
         shell=True
     )
+    subprocess.run(
+    f"podman exec {new_name} bash -c \"echo {ip} > /etc/wireguard/ip.txt\"",
+    shell=True
+)
 
     # START WIREGUARD
     subprocess.run(
-        f"podman exec {container_name} wg-quick up wg0",
+        f"podman exec {new_name} wg-quick up wg0",
+        shell=True
+
+    ) 
+
+    add_peer_to_host(new_name, ip)
+
+
+HOST_WG_CONF = "/etc/wireguard/wg0.conf"
+WG_INTERFACE = "wg0"
+
+def add_peer_to_host(new_name, ip):
+
+    pub = subprocess.check_output(
+        f"podman exec {new_name} cat /etc/wireguard/publickey",
+        shell=True,
+        text=True
+    ).strip()
+
+    peer_block = f"""
+[Peer]
+PublicKey = {pub}
+AllowedIPs = {ip}/32
+"""
+
+    subprocess.run(
+        f"sudo bash -c \"echo '{peer_block}' >> {HOST_WG_CONF}\"",
         shell=True
     )
-#ip generation
-def get_next_ip():
-    import podman
 
+    subprocess.run(f"sudo wg-quick down {WG_INTERFACE}", shell=True)
+    subprocess.run(f"sudo wg-quick up {WG_INTERFACE}", shell=True)
+
+
+#ip generation
+
+def get_next_ip():
     client = podman.PodmanClient(
         base_url="unix:///run/user/1000/podman/podman.sock"
     )
@@ -547,4 +597,78 @@ def get_next_ip():
     base_ip = 2 + len(containers)
 
     return f"10.10.0.{base_ip}"
+
+# def connect_peers(new_name):
+
+#     # print("CONNECT PEERS CALLED:", new_container)
+
+#     containers = subprocess.check_output(
+#         "podman ps --format '{{.Names}}'",
+#         shell=True,
+#         text=True
+#     ).splitlines()
+
+#     # get new container data
+#     try:
+#         new_pub = subprocess.check_output(
+#             f"podman exec {new_name} cat /etc/wireguard/publickey",
+#             shell=True,
+#             text=True
+#         ).strip()
+
+#         new_ip = subprocess.check_output(
+#             f"podman exec {new_name} cat /etc/wireguard/ip.txt",
+#             shell=True,
+#             text=True
+#         ).strip()
+#     except:
+#         print("New container not ready")
+#         return
+
+#     for name in containers:
+
+#         if name == new_name:
+#             continue
+
+#         # check if container has wireguard
+#         check = subprocess.run(
+#             f"podman exec {name} test -f /etc/wireguard/publickey",
+#             shell=True
+#         )
+
+#         if check.returncode != 0:
+#             continue   # skip non-WG containers
+
+#         try:
+#             old_pub = subprocess.check_output(
+#                 f"podman exec {name} cat /etc/wireguard/publickey",
+#                 shell=True,
+#                 text=True
+#             ).strip()
+
+#             old_ip = subprocess.check_output(
+#                 f"podman exec {name} cat /etc/wireguard/ip.txt",
+#                 shell=True,
+#                 text=True
+#             ).strip()
+#         except:
+#             continue
+
+#         # write peer both sides
+#         subprocess.run(
+#             f"""podman exec {name} bash -c "printf '\\n[Peer]\\nPublicKey = {new_pub}\\nAllowedIPs = {new_ip}/32\\n' >> /etc/wireguard/wg0.conf" """,
+#             shell=True
+#         )
+
+#         subprocess.run(
+#             f"""podman exec {new_name} bash -c "printf '\\n[Peer]\\nPublicKey = {old_pub}\\nAllowedIPs = {old_ip}/32\\n' >> /etc/wireguard/wg0.conf" """,
+#             shell=True
+#         )
+
+#         subprocess.run(f"podman exec {name} wg-quick down wg0", shell=True)
+#         subprocess.run(f"podman exec {name} wg-quick up wg0", shell=True)
+
+#     subprocess.run(f"podman exec {new_name} wg-quick down wg0", shell=True)
+#     subprocess.run(f"podman exec {new_name} wg-quick up wg0", shell=True)
+
 
