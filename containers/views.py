@@ -407,6 +407,7 @@ def dashboard(request):
                     "container": "podman"
                 }
                 )
+                setup_wireguard(new_name)
                 msg = "Container created and started"
             except Exception:
                 msg = "Container name already exists or error occurred"
@@ -493,6 +494,44 @@ def logs_page(request, name):
         "container_name": name
     })
 
+def setup_wireguard(container_name, ip="10.10.0.2"):
 
+    subprocess.run(f"podman exec {container_name} mkdir -p /etc/wireguard", shell=True)
 
+    subprocess.run(
+        f"podman exec {container_name} bash -c 'wg genkey | tee /etc/wireguard/privatekey'",
+        shell=True
+    )
+
+    subprocess.run(
+        f"podman exec {container_name} bash -c 'cat /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey'",
+        shell=True
+    )
+
+    result = subprocess.run(
+        f"podman exec {container_name} cat /etc/wireguard/privatekey",
+        shell=True,
+        capture_output=True,
+        text=True
+    )
+
+    private_key = result.stdout.strip()
+
+    config = f"""
+        [Interface]
+        Address = {ip}/24
+        ListenPort = 51820
+        PrivateKey = {private_key}
+        """
+
+    subprocess.run(
+        f"podman exec {container_name} bash -c \"echo '{config}' > /etc/wireguard/wg0.conf\"",
+        shell=True
+    )
+
+    # START WIREGUARD
+    subprocess.run(
+        f"podman exec {container_name} wg-quick up wg0",
+        shell=True
+    )
 

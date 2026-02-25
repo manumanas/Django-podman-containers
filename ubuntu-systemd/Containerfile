@@ -1,0 +1,30 @@
+FROM ubuntu:22.04
+
+ENV container podman
+
+RUN apt-get update && \
+    apt-get install -y \
+        systemd \
+        systemd-sysv \
+        openssh-server \
+        wireguard \
+        iproute2 \
+        iputils-ping \
+        sudo \
+        nano \
+        net-tools && \
+    apt-get clean
+
+# SSH setup
+RUN mkdir /var/run/sshd
+
+# root password
+RUN echo 'root:root' | chpasswd
+
+# Enable ssh service
+RUN systemctl enable ssh
+
+# Required for systemd
+VOLUME ["/sys/fs/cgroup"]
+
+CMD ["/sbin/init"]
