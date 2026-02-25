@@ -494,8 +494,8 @@ def logs_page(request, name):
         "container_name": name
     })
 
-def setup_wireguard(container_name, ip="10.10.0.2"):
-
+def setup_wireguard(container_name):
+    ip = get_next_ip()
     subprocess.run(f"podman exec {container_name} mkdir -p /etc/wireguard", shell=True)
 
     subprocess.run(
@@ -534,4 +534,17 @@ def setup_wireguard(container_name, ip="10.10.0.2"):
         f"podman exec {container_name} wg-quick up wg0",
         shell=True
     )
+#ip generation
+def get_next_ip():
+    import podman
+
+    client = podman.PodmanClient(
+        base_url="unix:///run/user/1000/podman/podman.sock"
+    )
+
+    containers = client.containers.list(all=True)
+
+    base_ip = 2 + len(containers)
+
+    return f"10.10.0.{base_ip}"
 
