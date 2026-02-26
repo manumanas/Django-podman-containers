@@ -4,6 +4,7 @@ import pty
 import subprocess
 import signal
 import json
+import podman
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -140,7 +141,6 @@ class StatusConsumer(AsyncWebsocketConsumer):
             self.task.cancel()
 
     async def send_status_loop(self):
-        import podman
 
         client = podman.PodmanClient(
             base_url="unix:///run/user/1000/podman/podman.sock"
