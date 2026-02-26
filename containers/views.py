@@ -303,6 +303,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 import time
+from .models import Container
 
 
 HOST_PUBLIC_KEY = "6cuKRk+7PQjrgLms8hRTrhNa7TiRoiZY3O5K4Jog41k="
@@ -435,7 +436,17 @@ def dashboard(request):
                 elif action == "stop":
                     container.stop()
                 elif action == "delete":
+
                     container.remove(force=True)
+
+                    try:
+                        record = Container.objects.get(name=container_name)
+                        record.delete()
+
+                        rebuild_host_wg_config()
+
+                    except Container.DoesNotExist:
+                        pass
                 elif action == "pause":
                     container.pause()
                 elif action == "unpause":
@@ -539,6 +550,20 @@ def setup_wireguard(new_name):
             Endpoint = {HOST_ENDPOINT}
             PersistentKeepalive = 25
             """
+    
+
+    pub_result = subprocess.check_output(
+    f"podman exec {new_name} cat /etc/wireguard/publickey",
+    shell=True,
+    text=True
+    ).strip()
+
+    # save to DB
+    Container.objects.create(
+        name=new_name,
+        wireguard_ip=ip,
+        public_key=pub_result
+    )
 
     subprocess.run(
         f"podman exec {new_name} bash -c \"echo '{config}' > /etc/wireguard/wg0.conf\"",
@@ -562,41 +587,71 @@ def setup_wireguard(new_name):
 HOST_WG_CONF = "/etc/wireguard/wg0.conf"
 WG_INTERFACE = "wg0"
 
-def add_peer_to_host(new_name, ip):
+HOST_PRIVATE_KEY = "WK9wqYwB4HiKTBEDfqv6Ara63PqHJjnRUpqYSWM9CHI="
 
-    pub = subprocess.check_output(
-        f"podman exec {new_name} cat /etc/wireguard/publickey",
-        shell=True,
-        text=True
-    ).strip()
 
-    peer_block = f"""
-[Peer]
-PublicKey = {pub}
-AllowedIPs = {ip}/32
+def rebuild_host_wg_config():
+
+    from .models import Container
+
+    interface_block = f"""
+[Interface]
+Address = 10.10.0.1/24
+ListenPort = 51820
+PrivateKey = {HOST_PRIVATE_KEY}
 """
 
+    peer_blocks = ""
+
+    containers = Container.objects.all()
+
+    for c in containers:
+        peer_blocks += f"""
+[Peer]
+PublicKey = {c.public_key}
+AllowedIPs = {c.wireguard_ip}/32
+"""
+
+    full_config = interface_block + peer_blocks
+
+    # write config
     subprocess.run(
-        f"sudo bash -c \"echo '{peer_block}' >> {HOST_WG_CONF}\"",
+        f"sudo bash -c \"echo '{full_config}' > {HOST_WG_CONF}\"",
         shell=True
     )
 
+    # restart WG
     subprocess.run(f"sudo wg-quick down {WG_INTERFACE}", shell=True)
     subprocess.run(f"sudo wg-quick up {WG_INTERFACE}", shell=True)
 
+def add_peer_to_host(new_name, ip):
+    rebuild_host_wg_config()
 
 #ip generation
 
 def get_next_ip():
-    client = podman.PodmanClient(
-        base_url="unix:///run/user/1000/podman/podman.sock"
-    )
+    used_ips = Container.objects.values_list("wireguard_ip", flat=True)
 
-    containers = client.containers.list(all=True)
+    base = "10.10.0."
+    for i in range(2, 255):
+        candidate = base + str(i)
+        if candidate not in used_ips:
+            return candidate
 
-    base_ip = 2 + len(containers)
+    raise Exception("No IPs available")
 
-    return f"10.10.0.{base_ip}"
+
+
+# def get_next_ip():
+#     client = podman.PodmanClient(
+#         base_url="unix:///run/user/1000/podman/podman.sock"
+#     )
+
+#     containers = client.containers.list(all=True)
+
+#     base_ip = 2 + len(containers)
+
+#     return f"10.10.0.{base_ip}"
 
 # def connect_peers(new_name):
 
