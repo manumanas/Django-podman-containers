@@ -7,3 +7,8 @@ db.sqlite3
 node_modules/
 media/
 staticfiles/
+# Keys
+*.key
+privatekey
+publickey
+.env
