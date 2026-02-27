@@ -10,10 +10,10 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 import time
 from .models import Container
+from django.conf import settings
 
-
-HOST_PUBLIC_KEY = "ZXW5FNRb2pp1Jcw3bttCrErxzs+b3/gSipDEGQ6zrBY="
-HOST_ENDPOINT = "192.168.10.191:51820"
+HOST_PUBLIC_KEY = settings.HOST_PUBLIC_KEY
+HOST_ENDPOINT = settings.HOST_ENDPOINT
 
 
 import os
@@ -346,7 +346,7 @@ def setup_wireguard(new_name):
 HOST_WG_CONF = "/etc/wireguard/wg0.conf"
 WG_INTERFACE = "wg0"
 
-HOST_PRIVATE_KEY = "GD0aBMKr21/DvimwL0QdUoyN5S5P8+hIw6yBEYfoj24="
+HOST_PRIVATE_KEY = settings.HOST_PRIVATE_KEY
 
 def rebuild_host_wg_config():
 

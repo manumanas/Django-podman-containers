@@ -10,10 +10,23 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
+from pathlib import Path 
+import os
+from dotenv import load_dotenv  
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file
+load_dotenv(BASE_DIR / ".env")
+
+# Read environment variables
+HOST_PRIVATE_KEY = os.getenv("HOST_PRIVATE_KEY")
+HOST_PUBLIC_KEY = os.getenv("HOST_PUBLIC_KEY")
+HOST_ENDPOINT = os.getenv("HOST_ENDPOINT")
+
+WG_NETWORK = os.getenv("WG_NETWORK", "10.10.0.0/24")
+WG_INTERFACE = os.getenv("WG_INTERFACE", "wg0")
 
 
 # Quick-start development settings - unsuitable for production
