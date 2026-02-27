@@ -155,6 +155,22 @@
             margin-right: 5px;
             margin-top: 4px;
         }
+        .logout-btn {
+        display: block;
+        margin-bottom: 20px;
+        font-size: 18px;     
+        font-weight: 600;
+        color: #ede7e7;        
+        text-decoration: none;
+        padding: 8px 10px;
+        border-radius: 6px;
+        transition: 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #ff4d4d;
+        }
 
     </style>
 </head>
@@ -168,10 +184,10 @@
     border-radius:8px;
     margin-bottom:15px;
 ">
-    👤 {{ request.user.username }}
+    🧑🏻‍💻 {{ request.user.username }}
 </div>
 
-    <a href="/logout/">Logout</a>
+    <a href="/logout/" class="logout-btn">Logout</a>
 
     <div class="logo">Features</div>
 

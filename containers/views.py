@@ -16,6 +16,54 @@ HOST_PUBLIC_KEY = "ZXW5FNRb2pp1Jcw3bttCrErxzs+b3/gSipDEGQ6zrBY="
 HOST_ENDPOINT = "192.168.10.191:51820"
 
 
+import os
+
+def enable_autostart(container_name):
+
+    service_dir = os.path.expanduser("~/.config/systemd/user")
+
+    # create systemd folder
+    subprocess.run(
+        f"mkdir -p {service_dir}",
+        shell=True
+    )
+
+    # generate systemd file
+    subprocess.run(
+        f"podman generate systemd --name {container_name} --files",
+        shell=True
+    )
+
+    # move service file
+    subprocess.run(
+        f"mv container-{container_name}.service {service_dir}/",
+        shell=True
+    )
+
+    # reload systemd
+    subprocess.run(
+        "systemctl --user daemon-reexec",
+        shell=True
+    )
+
+    subprocess.run(
+        "systemctl --user daemon-reload",
+        shell=True
+    )
+
+    # enable autostart
+    subprocess.run(
+        f"systemctl --user enable container-{container_name}.service",
+        shell=True
+    )
+
+    # allow boot start (runs once, safe if repeated)
+    subprocess.run(
+        "loginctl enable-linger $USER",
+        shell=True
+    )
+
+
 client = podman.PodmanClient(
     base_url="unix:///run/user/1000/podman/podman.sock"
 )
@@ -109,6 +157,7 @@ def dashboard(request):
                     stdin_open=True,
                     privileged=True,
                     name=new_name,
+                    restart_policy={"Name": "always"},
                     volumes={
                         "/sys/fs/cgroup": {
                             "bind": "/sys/fs/cgroup",
@@ -119,6 +168,7 @@ def dashboard(request):
                     "container": "podman"
                 }
                 )
+                enable_autostart(new_name)
                 setup_wireguard(new_name)
                 
                 time.sleep(3)
