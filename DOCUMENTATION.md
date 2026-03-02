@@ -1,25 +1,25 @@
-Container Management Platform (with Wireguard Automation)
+# Container Management Platform (with Wireguard Automation)
 
-Overview of the project:
+---
 
-This project is a web-based container management platform built using Django + Podman + Wireguard.
+## Overview of the project
+
+This project is a web-based container management platform built using **Django + Podman + Wireguard**.
 
 It allows users to:
 
-Create and manage containers from the web browser
+* Create and manage containers from the web browser
+* Automatically configure the Wireguard networking in containers
+* Access container's terminal from web UI
+* View live container logs
+* Monitor container status in real time
+* Auto-start containers after system reboot
 
-Automatically configure Wireguard networking in containers
+---
 
-Access container terminal from web UI
+## Project Structure
 
-View live container logs
-
-Monitor container status in real time
-
-Auto-start containers after system reboot
-
-Project Structure
-
+```
 mysite/
 │
 ├── containers/
@@ -32,9 +32,13 @@ mysite/
 │
 ├── manage.py
 └── settings.py
+```
 
-High Level Architecture of the application:
+---
 
+## High Level Architecture of the application
+
+```
 User Browser (Frontend UI)
         |
 Django Web Application (Backend Server)
@@ -50,63 +54,63 @@ Wireguard Configuration Inside Containers
 Host Wireguard Interface
         |
 Connection Between Host and Containers
+```
 
-Features of the application:
+---
 
-User Authentication system
+## Basic features provided in this application
 
-Container management (start/stop/delete , etc.) 
+* User Authentication system
+* Container management (start/stop/delete , etc.)
+* Browser-based terminal access
+* Automatic Wireguard configuration in containers
+* Real-time logs streaming
+* Auto-start containers after reboot
+* Dynamic IP allocation
+* And Systemd,SSH,Nano,WG are by default installed while creating the containers
 
-Browser-based terminal access 
+---
 
-Automatic Wireguard configuration in containers
+# 1. Authentication System
 
-Real-time logs streaming 
+Users can sign up and later may sign in to log in, to access the container-dashboard.
 
-Auto-start containers after reboot 
+### Preview of the page
 
-Dynamic IP allocation
-
-1. Authentication System:
-
-Users can sign up and log in to access the dashboard.
-
-Preview of the page:
 ![Authentication](docs/images/Authentication.png)
 
-2. Container Dashboard
+---
 
-Main interface for managing containers.
+# 2. Container Dashboard
 
-Features:
+Main interface for managing the containers.
 
-Create container
+### Features
 
-Start / Stop / Pause / Delete
+* Create container
+* Start / Stop / Pause / Delete
+* Open terminal
+* View logs
+* View Podman-images
 
-Open terminal
+### Preview of the page
 
-View logs
-
-View images
-
-Preview of the page:
 ![Dashboard](docs/images/dashboard.png)
 
-The image used to create containers is Ubuntu
+The image used to create containers is "Ubuntu"
 
 When a container is created by default it comes with some installed packages:
 
-Wireguard
+* Wireguard
+* SSH
+* Systemd
+* Nano
 
-SSH
+---
 
-Systemd
+# 3. Container Creation Flow
 
-Nano
-
-3. Container Creation Flow:
-
+```
 User → Dashboard → Create Container
         |
 Django Backend
@@ -120,68 +124,75 @@ Wireguard Config Generated
 Host Peer Updated
         |
 Container Ready
+```
 
-4. Browser Terminal
+---
+
+# 4. Browser Terminal
 
 Interactive terminal connected directly to container shell using WebSockets.
 
-Technology used:
+### Technology used
 
-Django Channels
+* Django Channels
+* PTY
+* Xterm.js
 
-PTY
+### Preview of the page
 
-Xterm.js
-
-Preview of the page:
 ![Terminal](docs/images/terminal.png)
 
-5. Logs Viewer
+---
+
+# 5. Logs Viewer
 
 Real-time container logs streaming using WebSockets.
 
-Preview of the page:
+### Preview of the page
+
 ![Logs](docs/images/logs.png)
 
-6. Wireguard Automation:
+---
+
+# 6. Wireguard Automation
 
 Each container automatically receives:
 
-Unique VPN IP
-
-Private/Public key pair
-
-Peer configuration with host
+* Unique VPN IP
+* Private/Public key pair
+* Peer configuration with host
 
 Example network:
 
+```
 Host:        10.10.0.1
-
 Container 1: 10.10.0.2
-
 Container 2: 10.10.0.3
+```
 
 Wireguard config is dynamically rebuilt whenever containers are added or removed.
 
-7. Overview of each file what it does
+---
 
-a. Models.py
+# 7. Overview of each file (what it does)
+
+## a. models.py
 
 This file defines the database structure used by the application.
 
-Basically It contains the Container model, which stores networking information required for Wireguard configuration.
+Basically it contains the Container model, which stores networking information required for Wireguard configuration.
 
 Fields
 
-name → Name of the container (unique)
-
-Wireguard_ip → Assigned VPN IP address
-
-public_key → Wireguard public key of the container
+* name → Name of the container (unique)
+* Wireguard_ip → Assigned VPN IP address
+* public_key → Wireguard public key of the container
 
 This database table acts as the source of truth for all Wireguard peer configurations.
 
-b. Views.py
+---
+
+## b. views.py
 
 This is the main backend logic file and acts as the central controller of the application.
 
@@ -189,31 +200,28 @@ It handles both user interactions and system automation tasks.
 
 This file is mainly responsible for:
 
-Authentication
+* Authentication
+* Container creation
+* Container actions
+* Wireguard setup
+* Host Wireguard Rebuild
+* Auto-start configuration
 
-Container creation
+---
 
-Container actions
-
-Wireguard setup
-
-Host Wireguard Rebuild
-
-Auto-start configuration
-
-c. Consumers.py
+## c. consumers.py
 
 This file implements WebSocket-based real-time communication using Django Channels.
 
 There are three main consumers:
 
-TerminalConsumer → Provides an interactive terminal session inside the container.
+* TerminalConsumer → Provides an interactive terminal session inside the container.
+* LogsConsumer → Streams real-time logs
+* StatusConsumer → Continuously monitors container status.
 
-LogsConsumer → Streams real-time logs
+---
 
-StatusConsumer → Continuously monitors container status.
-
-d. routing.py
+## d. routing.py
 
 This file defines WebSocket URL routes for Django Channels.
 
@@ -221,157 +229,190 @@ It maps WebSocket endpoints to the appropriate consumers.
 
 Examples:
 
-/ws/terminal/<container_name>/
-
-/ws/logs/<container_name>/
-
-/ws/status/
+* /ws/terminal/<container_name>/
+* /ws/logs/<container_name>/
+* /ws/status/
 
 This acts similarly to urls.py but for WebSockets instead of HTTP.
 
-e. urls.py
+---
+
+## e. urls.py
 
 This file defines HTTP routes for the application.
 
-It connects URLs with Django view functions.
+It connects URLs with Django's view functions.
 
 Routes Included
 
-Login page
-
-Dashboard page
-
-Logout endpoint
-
-Terminal page
-
-Logs viewer page
+* Login page
+* Dashboard page
+* Logout endpoint
+* Terminal page
+* Logs viewer page
 
 It serves as the entry point for all browser requests.
 
-f. apps.py
+---
+
+## f. apps.py
 
 This file registers the Django application configuration. i.e It informs Django about the existence of the containers app.
 
-g. admin.py
+---
+
+## g. admin.py
 
 This file is used to connect the database models to the Django admin panel. If we register models here, we can view and manage the data from the admin website.
 
-h. Templates Folder(Frontend UI)
+---
+
+## h. Templates Folder (Frontend UI)
 
 The templates folder contains HTML files responsible for rendering the user interface.
 
-auth.html  —> This file provides the authentication interface for the application.
+* auth.html  —> This file provides the authentication interface for the application.
+* dashboard.html —> This is the main user interface of the platform. t provides container management functionality.
+* logs.html —> This page displays container logs in real time.
+* terminal.html —> This file provides the browser-based terminal interface. And It uses Xterm.js to simulate a Linux terminal in the browser.
 
-dashboard.html —> This is the main user interface of the platform. t provides container management functionality.
+---
 
-logs.html —> This page displays container logs in real time.
-
-terminal.html —> This file provides the browser-based terminal interface. And It uses Xterm.js to simulate a Linux terminal in the browser.
-
-i. static Folder
+## i. static Folder
 
 The static folder contains frontend assets used by the templates.
 
 Typical contents include:
 
-Images (logo, icons)
+* Images (logo, icons)
+* CSS files
+* JavaScript files
+* Fonts
 
-CSS files
+But in our case we only used it for Images.
 
-JavaScript files
+---
 
-Fonts      
-
-But in our case we only use for Images.
-
-Autostart of the containers
+# 8. Autostart of the containers
 
 The application implements an automatic container startup mechanism to ensure that all previously created containers are restored and running after a host system reboot, without requiring any manual intervention.
 
 This functionality is achieved using systemd user services generated by Podman.
 
-9. Technologies Used
+---s.
 
-Technology
+### Networking Mode
 
-Purpose
+# 9. Technologies Used
 
-Django
+| Technology      | Purpose           |
+| --------------- | ----------------- |
+| Django          |s.
 
-Web framework
+### Networking Mode Web framework     |
+| Podman          | Container engine  |
+| Wireguard       | Secure networking |
+| Django Channels | WebSockets        |
+| Xterm.js        | Browser terminal  |
+| SQLite          | Database          |
+| systemd         | Auto-start        |
 
-Podman
+---
 
-Container engine
+# Additional Technical Details
 
-Wireguard
+### Container Runtime
 
-Secure networking
+The project uses **Podman (rootless containers)** instead of Docker, which provides better security and does not require a daemon running with root privileges.
 
-Django Channels
+### Networking Model
 
-WebSockets
+Each container connects to the host through a **Wireguard VPN tunnel**, creating a private secure network between:
 
-Xterm.js
+* Host machine
+* Containers
 
-Browser terminal
+### Real-Time Communication
 
-SQLite
+Real-time features such as terminal access and logs streaming are implemented using:
 
-Database
+* WebSockets
+* Django Channels
+* Async Consumers
 
-systemd
+This avoids page refresh and improves user experience.
 
-Auto-start
+---
 
-10. System Requirements
+# 10. System Requirements
 
-Python 3.10+
-Git
-Podman
-Linux (Ubuntu/Kubuntu recommended)
-Wireguard
-SSH
+* Python 3.10+
+* Git
+* Podman
+* Linux (Ubuntu/Kubuntu recommended)
+* Wireguard
+* SSH
 
-11. Installation Steps
+---
 
-Install Dependencies
+# 11. Installation Steps
 
+## Install Dependencies
+
+```
 sudo apt update
-
 sudo apt install git python3 python3-venv python3-pip podman -y
+```
 
-Start Podman Socket
+## Start Podman Socket
 
+```
 systemctl --user start podman.socket
-
 systemctl --user enable podman.socket
+```
 
-Clone Repository
+## Clone Repository
 
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
+```
+git clone https://github.com/manumanas/Django-podman-containers
+cd Django-podman-containers
+```
 
-cd YOUR_REPO
+## Create Virtual Environment
 
-Create Virtual Environment
-
+```
 python3 -m venv venv
-
 source venv/bin/activate
+```
 
-Install Python Requirements
+## Install Python Requirements
 
+```
 pip install -r requirements.txt
+```
 
-Database Migration
+## Database Migration
 
+```
 python manage.py migrate
+```
 
-Run Application (Daphne)
+## Run Application (Daphne)
 
+```
 daphne -b 127.0.0.1 -p 8000 mysite.asgi:application
+```
 
 Open browser:
 
+```
 http://127.0.0.1:8000
+```
+
+---
+
+# Conclusion
+
+This platform provides a complete solution for managing containers with secure networking, automation, and real-time interaction through a web interface. It demonstrates integration between modern Linux technologies such as Podman, Wireguard, systemd, and Django Channels to create a scalable and efficient container management environment.
+
+---
