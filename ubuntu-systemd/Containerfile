@@ -1,30 +1,41 @@
 FROM ubuntu:22.04
 
 ENV container podman
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y \
         systemd \
         systemd-sysv \
         openssh-server \
-        wireguard \
         iproute2 \
         iputils-ping \
         sudo \
         nano \
-        net-tools && \
+        net-tools \
+        curl \
+        procps \
+        ca-certificates \
+        gnupg \
+        lsb-release && \
     apt-get clean
+
+# Install Tailscale
+RUN curl -fsSL https://tailscale.com/install.sh | sh
 
 # SSH setup
 RUN mkdir /var/run/sshd
 
-# root password
+# root password (optional)
 RUN echo 'root:root' | chpasswd
 
-# Enable ssh service
+# Enable services
 RUN systemctl enable ssh
+RUN systemctl enable tailscaled
 
 # Required for systemd
 VOLUME ["/sys/fs/cgroup"]
+
+STOPSIGNAL SIGRTMIN+3
 
 CMD ["/sbin/init"]

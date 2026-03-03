@@ -20,13 +20,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load .env file
 load_dotenv(BASE_DIR / ".env")
 
-# Read environment variables
-HOST_PRIVATE_KEY = os.getenv("HOST_PRIVATE_KEY")
-HOST_PUBLIC_KEY = os.getenv("HOST_PUBLIC_KEY")
-HOST_ENDPOINT = os.getenv("HOST_ENDPOINT")
+HEADSCALE_URL = os.getenv("HEADSCALE_URL")
+PREAUTH_KEY = os.getenv("PREAUTH_KEY")
 
-WG_NETWORK = os.getenv("WG_NETWORK", "10.10.0.0/24")
-WG_INTERFACE = os.getenv("WG_INTERFACE", "wg0")
+# Read environment variables
+# HOST_PRIVATE_KEY = os.getenv("HOST_PRIVATE_KEY")
+# HOST_PUBLIC_KEY = os.getenv("HOST_PUBLIC_KEY")
+# HOST_ENDPOINT = os.getenv("HOST_ENDPOINT")
+
+# WG_NETWORK = os.getenv("WG_NETWORK", "10.10.0.0/24")
+# WG_INTERFACE = os.getenv("WG_INTERFACE", "wg0")
 
 
 # Quick-start development settings - unsuitable for production
