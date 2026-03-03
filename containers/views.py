@@ -152,7 +152,7 @@ def dashboard(request):
                 client.containers.run(
                     "ubuntu-systemd",   # your custom image
                     command=["/sbin/init"],
-                    detach=True,
+                    detach=True, 
                     tty=True,
                     stdin_open=True,
                     privileged=True,

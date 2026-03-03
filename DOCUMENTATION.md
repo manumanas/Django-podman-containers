@@ -18,6 +18,7 @@ It allows users to:
 ---
 
 ## Project Structure
+* The project is residing in:
 
 ```
 mysite/
@@ -38,42 +39,17 @@ mysite/
 
 ## High Level Architecture of the application
 
-```
-User Browser (Frontend UI)
-        |
-Django Web Application (Backend Server)
-        |
-Podman Client / Podman Socket API
-        |
-Podman Container Engine
-        |
-Containers (Ubuntu + systemd)
-        |
-Wireguard Configuration Inside Containers
-        |
-Host Wireguard Interface
-        |
-Connection Between Host and Containers
-```
-
----
-
-## Basic features provided in this application
-
-* User Authentication system
-* Container management (start/stop/delete , etc.)
-* Browser-based terminal access
-* Automatic Wireguard configuration in containers
-* Real-time logs streaming
-* Auto-start containers after reboot
-* Dynamic IP allocation
-* And Systemd,SSH,Nano,WG are by default installed while creating the containers
+![Architecture](docs/images/architecture.png) 
 
 ---
 
 # 1. Authentication System
 
-Users can sign up and later may sign in to log in, to access the container-dashboard.
+* For first time login, Users should Sign Up and log in to access the dashboard. And later you can use Sign in option.
+
+* The users data will be stored in Django DB. To be specific it’s stored in db.sqlite3 file.
+
+* In order to see the db.sqlite3 in VS code i recommend you to install an extension called “SQLite Viewer“.
 
 ### Preview of the page
 
@@ -83,60 +59,152 @@ Users can sign up and later may sign in to log in, to access the container-dashb
 
 # 2. Container Dashboard
 
-Main interface for managing the containers.
+1. So this is the main interface for managing our Podman-containers. Any containers that are already present on your machine will also be displayed here.
 
-### Features
+2. Functionalities provided in the dashboard :
 
-* Create container
-* Start / Stop / Pause / Delete
-* Open terminal
-* View logs
-* View Podman-images
+* Creating new containers
+
+* Start / Stop / Pause / Deleting the containers
+
+* Open’s web-terminal for a specific container
+
+* Can View logs for specific container
+
+* View images present in our machine
+
+* And a Logout option
 
 ### Preview of the page
 
 ![Dashboard](docs/images/dashboard.png)
 
-The image used to create containers is "Ubuntu"
+3. When we create a new container from WEB-UI, by default the image used is UBUNTU.
 
-When a container is created by default it comes with some installed packages:
+4. The following packages are installed during container creation:
 
 * Wireguard
+
 * SSH
+
 * Systemd
+
 * Nano
 
 ---
+## Now let’s look at some core functionalities:
 
-# 3. Container Creation Flow
+## 1. Container Creation:
 
+So how the container is creating when we click on create button?
+
+—> When the user clicks the Create button in the web interface:
+
+- A request is sent from the Frontend (Dashboard UI)  
+- The request reaches the Django Backend  
+- Django uses the Podman Python client / Podman CLI  
+- A new container is created using a predefined image  
+- Required packages (WireGuard, SSH, systemd, Nano) are already available inside the image  
+- The container is started  
+- WireGuard configuration is generated  
+- The host peer configuration is updated  
+
+Let’s see backend code how it got implemented. If you want full exact code you can refer to `views.py`.
+
+```python
+import podman
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from .models import Container
+
+@login_required
+def create_container(request):
+    if request.method == "POST":
+        container_name = request.POST.get("container_name")
+
+        # Connect to Podman (rootless socket)
+        client = podman.PodmanClient(
+            base_url="unix:///run/user/1000/podman/podman.sock"
+        )
+
+        # Create container
+        container = client.containers.create(
+            image="ubuntu-systemd:latest",
+            name=container_name,
+            tty=True,
+            stdin_open=True,
+            privileged=True
+        )
+
+        # Start container
+        container.start()
+
+        # Save container info in database
+        Container.objects.create(
+            name=container_name,
+            container_id=container.id,
+            status="running"
+        )
+
+        return redirect("dashboard")
 ```
-User → Dashboard → Create Container
-        |
-Django Backend
-        |
-Podman Container Created
-        |
-Auto-Start Enabled (systemd)
-        |
-Wireguard Config Generated
-        |
-Host Peer Updated
-        |
-Container Ready
-```
 
----
 
 # 4. Browser Terminal
 
 Interactive terminal connected directly to container shell using WebSockets.
 
-### Technology used
+If you want full code please refer to consumers.py
+```python
+class TerminalConsumer(AsyncWebsocketConsumer):
 
-* Django Channels
-* PTY
-* Xterm.js
+    async def connect(self):
+        self.container_name = self.scope["url_route"]["kwargs"]["name"]
+        await self.accept()
+        self.master_fd, self.slave_fd = pty.openpty()
+        self.process = subprocess.Popen(
+            [
+                "podman",
+                "exec",
+                "-it",
+                self.container_name,
+                "bash",
+                "-i",
+            ],
+            stdin=self.slave_fd,
+            stdout=self.slave_fd,
+            stderr=self.slave_fd,
+            preexec_fn=os.setsid,
+        )
+        os.close(self.slave_fd)
+        await asyncio.sleep(0.2)
+        os.write(
+            self.master_fd,
+            f'export PS1="root@{self.container_name}:\\w# "\n'.encode())
+        self.read_task = asyncio.create_task(self.read_pty())
+
+```
+Understanding how it got implemented:
+
+- The browser terminal is implemented using Django Channels and WebSockets to enable real-time communication between the browser and the backend.
+
+- When a user opens the terminal for a container, the frontend connects to —> ws/terminal/<container_name>/, which is routed to TerminalConsumer class present in consumers.py
+
+- Inside TerminalConsumer, the container name is extracted from the WebSocket URL.
+
+- A pseudo-terminal (PTY) is created using pty.openpty() to simulate a real Linux terminal environment.
+
+- The backend executes podman exec -it <container_name> bash -i using subprocess.Popen, attaching the shell to the PTY.
+
+- The slave side of the PTY is connected to the container shell, while the master side is controlled by Django.
+
+- When the user types a command in the browser, it is sent via WebSocket and written into the PTY using os.write().
+
+- A background async task continuously reads shell output from the PTY using os.read() and streams it back to the browser in real time.
+
+- A custom shell prompt (PS1) is dynamically set to show the container name, improving clarity and usability.
+
+- When the WebSocket disconnects, the backend safely terminates the shell process and closes file descriptors to prevent resource leaks.
 
 ### Preview of the page
 
@@ -147,6 +215,64 @@ Interactive terminal connected directly to container shell using WebSockets.
 # 5. Logs Viewer
 
 Real-time container logs streaming using WebSockets.
+```python
+class LogsConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
+        self.container_name = self.scope["url_route"]["kwargs"]["name"]
+        await self.accept()
+        loop = asyncio.get_running_loop()
+        history = await loop.run_in_executor(
+            None,
+            lambda: subprocess.check_output(
+                ["podman", "logs", self.container_name],
+                text=True
+            ))
+        await self.send(text_data=history)
+        self.process = subprocess.Popen(
+            ["podman", "logs", "-f", "--since", "1s", self.container_name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        asyncio.create_task(self.stream_logs())
+    async def disconnect(self, close_code):
+        if hasattr(self, "process"):
+            self.process.kill()
+
+    async def stream_logs(self):
+        loop = asyncio.get_running_loop()
+
+        while True:
+            line = await loop.run_in_executor(
+                None,
+                self.process.stdout.readline
+            )
+            if not line:
+                break
+            await self.send(text_data=line)
+```
+Understanding how it got implemented:
+
+- The Logs Viewer is implemented using Django Channels and WebSockets to stream logs in real time from containers to the browser.
+
+- When the user opens the logs page, the frontend establishes a WebSocket connection to —> ws/logs/<container_name>/, which is routed to LogsConsumer class in consumers.py
+
+- Inside connect(), the container name is extracted from the WebSocket URL so logs can be fetched dynamically for that specific container consumers
+
+- First, the system fetches complete historical logs using → podman logs <container_name> and sends them immediately to the browser.
+
+- Then, a continuous log-follow process is started using —> podman logs -f --since 1s <container_name>
+
+- The -f flag enables live streaming mode, similar to tail -f, so new logs are captured in real time.
+
+- The process output is connected to stdout=subprocess.PIPE, allowing Django to read log lines programmatically.
+
+- An asynchronous background task (stream_logs) continuously reads new log lines using readline() and sends them instantly over WebSocket.
+
+- Because this runs asynchronously, multiple users can view logs of different containers simultaneously without blocking the server.
+
+- When the WebSocket disconnects, the running podman logs -f process is safely terminated to prevent resource leaks.
 
 ### Preview of the page
 
@@ -299,17 +425,13 @@ The application implements an automatic container startup mechanism to ensure th
 
 This functionality is achieved using systemd user services generated by Podman.
 
----s.
-
-### Networking Mode
+---
 
 # 9. Technologies Used
 
 | Technology      | Purpose           |
 | --------------- | ----------------- |
-| Django          |s.
-
-### Networking Mode Web framework     |
+| Django          | Web framework     |
 | Podman          | Container engine  |
 | Wireguard       | Secure networking |
 | Django Channels | WebSockets        |
@@ -397,6 +519,13 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
+## Building the image: 
+Note: we need to change the directory to the directory that has Containerfile in it.
+
+```
+podman build -t ubuntu-systemd -f ubuntu-systemd/Containerfile ubuntu-systemd/
+```
+
 ## Run Application (Daphne)
 
 ```
@@ -408,11 +537,5 @@ Open browser:
 ```
 http://127.0.0.1:8000
 ```
-
----
-
-# Conclusion
-
-This platform provides a complete solution for managing containers with secure networking, automation, and real-time interaction through a web interface. It demonstrates integration between modern Linux technologies such as Podman, Wireguard, systemd, and Django Channels to create a scalable and efficient container management environment.
 
 ---
