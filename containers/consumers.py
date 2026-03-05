@@ -5,6 +5,7 @@ import subprocess
 import signal
 import json
 import podman
+import fcntl, struct, termios
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -16,7 +17,10 @@ class TerminalConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
         self.master_fd, self.slave_fd = pty.openpty()
-
+        rows = 40
+        cols = 120
+        size = struct.pack("HHHH", rows, cols, 0, 0)
+        fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
         self.process = subprocess.Popen(
             [
                 "podman",
@@ -62,6 +66,14 @@ class TerminalConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             if "input" in data:
                 os.write(self.master_fd, data["input"].encode())
+            elif "resize" in data:
+                import fcntl, struct, termios
+
+                rows = data["resize"]["rows"]
+                cols = data["resize"]["cols"]
+
+                size = struct.pack("HHHH", rows, cols, 0, 0)
+                fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, size)
 
     async def read_pty(self):
         loop = asyncio.get_running_loop()
@@ -72,7 +84,7 @@ class TerminalConsumer(AsyncWebsocketConsumer):
                     None,
                     os.read,
                     self.master_fd,
-                    1024
+                    4096
                 )
 
                 if data:

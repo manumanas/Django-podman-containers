@@ -18,7 +18,7 @@ PREAUTH_KEY = settings.PREAUTH_KEY
 # PODMAN CLIENT
 
 client = podman.PodmanClient(
-    base_url="unix:///run/user/1000/podman/podman.sock"
+    base_url="unix:///run/user/1001/podman/podman.sock"
 )
 
 
@@ -160,7 +160,7 @@ def dashboard(request):
 
                 # CONNECT TO HEADSCALE
                 subprocess.run(
-                    f"podman exec {new_name} bash -c 'tailscale up --login-server={HEADSCALE_URL} --authkey={PREAUTH_KEY}'",
+                    f"podman exec {new_name} bash -c 'tailscale up --login-server={HEADSCALE_URL} --authkey={PREAUTH_KEY} --hostname={new_name}'",
                     shell=True
                 )
 
@@ -211,6 +211,9 @@ def dashboard(request):
     container_data = []
 
     for c in containers:
+
+        if c.name == "headscale":
+            continue
 
         created_raw = c.attrs.get("Created")
 
