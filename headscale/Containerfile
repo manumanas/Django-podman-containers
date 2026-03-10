@@ -1,0 +1,21 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates
+
+# install headscale
+RUN curl -fsSL https://github.com/juanfont/headscale/releases/latest/download/headscale_linux_amd64 \
+    -o /usr/local/bin/headscale && \
+    chmod +x /usr/local/bin/headscale
+
+# create directories
+RUN mkdir -p /etc/headscale /var/lib/headscale
+
+COPY config.yaml /etc/headscale/config.yaml
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 8080
+
+CMD ["/entrypoint.sh"]

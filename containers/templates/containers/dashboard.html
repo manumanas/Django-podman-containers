@@ -172,6 +172,15 @@
             color: #ff4d4d;
         }
 
+        .alert{
+        /* background:#03aa62; */
+        padding:8px;
+        border-radius:6px;
+        margin-bottom:10px;
+        color:white;
+        font-weight:500;
+    }
+
     </style>
 </head>
 
@@ -264,7 +273,13 @@
 
         <h3>Containers</h3>
         <br>
-
+        {% if messages %}
+        <div id="msg-box">
+            {% for message in messages %}
+                <div class="alert">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
         <table>
 
             <tr>
@@ -294,16 +309,33 @@
 
                 <td class="actions">
 
-                    <form method="post" style="display:inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="name" value="{{ c.name }}">
+                <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="name" value="{{ c.name }}">
 
-                        <button class="btn-green" name="action" value="start">Start</button>
-                        <button class="btn-red" name="action" value="stop">Stop</button>
-                        <button class="btn-yellow" name="action" value="pause">Pause</button>
-                        <button class="btn-gray" name="action" value="unpause">Unpause</button>
-                        <button class="btn-red" name="action" value="delete">Delete</button>
-                    </form>
+                {% if c.status == "running" %}
+
+                <button class="btn-green" name="action" value="start">Start</button>
+                <button class="btn-red" name="action" value="stop">Stop</button>
+                <button class="btn-yellow" name="action" value="pause">Pause</button>
+
+                {% elif c.status == "paused" %}
+
+                <button class="btn-green" name="action" value="start">Start</button>
+                <button class="btn-red" name="action" value="stop">Stop</button>
+                <button class="btn-yellow" name="action" value="unpause">Unpause</button>
+
+                {% else %}
+
+                <button class="btn-green" name="action" value="start">Start</button>
+                <button class="btn-red" name="action" value="stop">Stop</button>
+                <button class="btn-yellow" name="action" value="pause">Pause</button>
+
+                {% endif %}
+
+                <button class="btn-red" name="action" value="delete">Delete</button>
+
+                </form>
 
                     <button class="btn-blue"
                         onclick="window.open('/logs/{{ c.name }}/')">
@@ -368,7 +400,14 @@ function showSection(sectionId) {
 
     document.getElementById(sectionId).style.display = "block";
 }
-
+setTimeout(function(){
+    const msg = document.getElementById("msg-box");
+    if(msg){
+        msg.style.transition = "opacity 0.5s";
+        msg.style.opacity = "0";
+        setTimeout(()=>{msg.remove();},500);
+    }
+},2500);
 </script>
 
 </body>

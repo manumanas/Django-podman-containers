@@ -10,6 +10,7 @@ import time
 from .models import Container
 import os
 from django.conf import settings
+from django.contrib import messages
 
 
 HEADSCALE_URL = settings.HEADSCALE_URL
@@ -108,7 +109,7 @@ def logout_view(request):
 @login_required(login_url="home")
 def dashboard(request):
 
-    msg = ""
+    msg = None
 
     if request.method == "POST":
 
@@ -192,17 +193,62 @@ def dashboard(request):
                 container = None
 
             if container:
+
+                container.reload()
+                status = container.status
                 if action == "start":
-                    container.start()
+
+                    if status == "paused":
+                        messages.error(request, f"{container_name} container is paused. Please unpause first.")
+
+                    elif status == "running":
+                        messages.error(request, f"{container_name} container already running.")
+
+                    else:
+                        container.start()
+                        messages.success(request, f"{container_name} container started.")
+
+
                 elif action == "stop":
-                    container.stop()
+
+                    if status == "paused":
+                        container.unpause()
+                        container.stop()
+                        messages.success(request, f"{container_name} container stopped.")
+
+                    elif status == "running":
+                        container.stop()
+                        messages.success(request, f"{container_name} container stopped.")
+
+                    else:
+                        messages.error(request, f"{container_name} container already stopped.")
+
+
+                elif action == "pause":
+
+                    if status != "running":
+                        messages.error(request, f"{container_name} container is not running.")
+
+                    else:
+                        container.pause()
+                        messages.success(request, f"{container_name} container paused.")
+
+
+                elif action == "unpause":
+
+                    if status != "paused":
+                        messages.error(request, f"{container_name} container is not paused.")
+
+                    else:
+                        container.unpause()
+                        messages.success(request, f"{container_name} container unpaused.")
+
+
                 elif action == "delete":
+
                     container.remove(force=True)
                     Container.objects.filter(name=container_name).delete()
-                elif action == "pause":
-                    container.pause()
-                elif action == "unpause":
-                    container.unpause()
+                    messages.success(request, f"{container_name} container deleted.")
 
     # DASHBOARD DATA
 
