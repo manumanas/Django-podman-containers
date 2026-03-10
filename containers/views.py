@@ -250,9 +250,12 @@ def dashboard(request):
                     Container.objects.filter(name=container_name).delete()
                     messages.success(request, f"{container_name} container deleted.")
 
+        return redirect(request.path)                 
+
     # DASHBOARD DATA
 
     containers = client.containers.list(all=True)
+    containers = containers[::-1]
 
     container_data = []
 
