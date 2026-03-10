@@ -177,7 +177,8 @@ def dashboard(request):
 
                 Container.objects.create(
                     name=new_name,
-                    tailscale_ip=tailscale_ip
+                    tailscale_ip=tailscale_ip,
+                    user=request.user
                 )
 
                 msg = "Container created and connected to Headscale"
@@ -254,7 +255,13 @@ def dashboard(request):
 
     # DASHBOARD DATA
 
-    containers = client.containers.list(all=True)
+    user_containers = Container.objects.filter(user=request.user)
+    user_container_names = [uc.name for uc in user_containers]
+
+    containers = [
+        c for c in client.containers.list(all=True)
+        if c.name in user_container_names
+    ]
     containers = containers[::-1]
 
     container_data = []
