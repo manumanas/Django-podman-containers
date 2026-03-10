@@ -11,6 +11,7 @@ from .models import Container
 import os
 from django.conf import settings
 from django.contrib import messages
+import re
 
 
 HEADSCALE_URL = settings.HEADSCALE_URL
@@ -86,12 +87,17 @@ def home(request):
             if User.objects.filter(username=username).exists():
                 signup_error = "Account already exists. Please sign in."
             else:
-                user = User.objects.create_user(
-                    username=username,
-                    password=password
-                )
-                login(request, user)
-                return redirect("dashboard")
+                password_pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$'
+                if not re.match(password_pattern, password):
+                    signup_error = "Password must be 8 chars with uppercase, lowercase, number and a special character."
+
+                else:
+                    user = User.objects.create_user(
+                        username=username,
+                        password=password
+                    )
+                    login(request, user)
+                    return redirect("dashboard")
 
     return render(request, "containers/auth.html", {
         "signin_error": signin_error,
